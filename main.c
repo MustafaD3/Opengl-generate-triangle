@@ -37,9 +37,17 @@ struct Buffering buffers;
 int triangleShaderCount = 0;
 int dataCount = 0;
 float *vertices = NULL;
+void glCheckError(const char* file, int line) {
+    GLenum err;
+    while ((err = glGetError()) != GL_NO_ERROR) {
+        printf("OpenGL Hatasý (%s:%d): %d\n", file, line, err);
+    }
+}
+#define GL_CHECK() ;glCheckError(__FILE__, __LINE__)
 void framebuffer_size_callback(GLFWwindow* window, int width, int height){
 	glViewport(0,0,width,height);
 }
+
 void mouse_callback(GLFWwindow* window, int button, int action, int mods) {
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
         double xpos, ypos;
@@ -49,35 +57,37 @@ void mouse_callback(GLFWwindow* window, int button, int action, int mods) {
         //printf("Left mouse button pressed at (%f, %f)\n", x, y);
         if(triangleShaderCount < 3){
         	if (vertices == NULL) {
-                vertices = (float*)malloc(9 * sizeof(float)); // Ýlk kez bellek tahsis et
+                vertices = (float*)malloc(3 * sizeof(float)); // Ýlk kez bellek tahsis et
             }
+           /*
+		    else {
+            		if(dataCount % 3 == 0){
+            		vertices = (float*)realloc(vertices,sizeof(vertices) * 3);
+				}
+			}
+		   */
         	*(vertices+dataCount) = x;
         	*(vertices+dataCount+1) = y;
         	*(vertices+dataCount+2) = 0.f;
         	dataCount+=3;
         	triangleShaderCount++;
+        		
 		}
-		int count;
-		for(count = 0;count < dataCount;count++){
-			//printf("%f",*(vertices + count));
-		}
-		//printf("%d",triangleShaderCount);
     }
 }
 struct Buffering create_buffers(){
 	struct Buffering buffering;
 	int count;
-	for(count = 0;count<dataCount;count++){
+	/*for(count = 0;count<dataCount;count++){
 		printf("%f\n",*(vertices + count));
-	}
+	}*/
 	unsigned int indices[] = {
 		0,1,2
 	};
-	unsigned int EBO,VBO,VAO;
+	glGenVertexArrays(1,&buffering.VAO);
 	glGenBuffers(1,&buffering.VBO);
 	glGenBuffers(1,&buffering.EBO);
-	glGenVertexArrays(1,&buffering.VAO);
-	glBindVertexArray(VAO);
+	glBindVertexArray(buffering.VAO);
 	
 	glBindBuffer(GL_ARRAY_BUFFER,buffering.VBO);
 	glBufferData(GL_ARRAY_BUFFER,sizeof(float) * dataCount,vertices,GL_STATIC_DRAW);
@@ -161,14 +171,11 @@ int main(int argc, char** argv) {
 		glClearColor(0.2f, 0.7f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		if(triangleShaderCount == 3){
-			if(!buffers.VAO){
 				buffers = create_buffers();
-			}	
 		}
 		glUseProgram(shaderProgram);
-	    glBindVertexArray(buffers.VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
-	    //glDrawArrays(GL_TRIANGLES, 0, 3);
-	    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(buffers.VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
+        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
 		glfwSwapBuffers(window);
 	    glfwPollEvents();
 	}
@@ -176,6 +183,7 @@ int main(int argc, char** argv) {
     glDeleteBuffers(1, &buffers.VBO);
     glDeleteBuffers(1, &buffers.EBO);
     glDeleteProgram(shaderProgram);
+	free(vertices);
 	glfwTerminate();
 	return 0;
 }
